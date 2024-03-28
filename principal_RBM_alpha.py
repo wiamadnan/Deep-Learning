@@ -5,7 +5,16 @@ from tqdm import tqdm
 import scipy.io as sio
 
 def lire_alpha_digit(data_path, caracters_idx):
-
+    """
+    Load and preprocess images from the Binary AlphaDigits dataset
+    
+    Args:
+        data_path (str): Path to the dataset file
+        characters_idx (list of int): Indices of characters to load
+    
+    Returns:
+        np.ndarray: Flattened images of the specified characters
+    """
     alpha_digit = sio.loadmat(data_path)['dat']
 
     imgs_set = alpha_digit[caracters_idx,:].flatten()
@@ -19,10 +28,28 @@ def lire_alpha_digit(data_path, caracters_idx):
     return imgs_set_flatten
 
 def sigmoid(x):
+    """
+    Compute the sigmoid function
+    
+    Args:
+        x (np.ndarray): Input array
+    
+    Returns:
+        np.ndarray: Sigmoid of the input
+    """
     return 1 / (1 + np.exp(-x))
 
 def init_RBM(p, q):
-
+    """
+    Initialize the weights and biases of an RBM
+    
+    Args:
+        p (int): Number of visible units
+        q (int): Number of hidden units
+    
+    Returns:
+        tuple: Weights, visible biases, and hidden biases
+    """
     W = np.random.normal(loc=0, scale=0.01, size=(p, q))
     a = np.zeros(p)
     b = np.zeros(q)
@@ -30,24 +57,59 @@ def init_RBM(p, q):
     return W, a, b
 
 def entree_sortie_RBM(X, W, b):
-
+    """
+    Calculate the activation of hidden units
+    
+    Args:
+        X (np.ndarray): Data input
+        W (np.ndarray): Weights matrix
+        b (np.ndarray): Hidden biases
+    
+    Returns:
+        tuple: Probabilities and sampled hidden states
+    """
     act = np.dot(X, W) + b
     proba_h = sigmoid(act)
 
-    h_s = 1 * (np.random.rand(*proba_h.shape) < proba_h)
+    # h_s = 1 * (np.random.rand(*proba_h.shape) < proba_h)
+    h_s = np.random.binomial(1, proba_h, size=proba_h.shape)
     return proba_h, h_s
 
 
 def sortie_entree_RBM(Y, W, a):
-
+    """
+    Reconstruct the visible units
+    
+    Args:
+        Y (np.ndarray): Hidden unit activations
+        W (np.ndarray): Weights matrix
+        a (np.ndarray): Visible biases
+    
+    Returns:
+        tuple: Probabilities and sampled visible states
+    """
     proj = np.dot(Y, W.T) + a
     proba_v = sigmoid(proj)
 
-    v_s = 1 * (np.random.rand(*proba_v.shape) < proba_v)
+    # v_s = 1 * (np.random.rand(*proba_v.shape) < proba_v)
+    v_s = np.random.binomial(1, proba_v, size=proba_v.shape)
     return proba_v, v_s
 
 def train_RBM(images, W, a, b, epochs=10000, learning_rate=0.01, batch_size=50, verbose = True):
-
+    """
+    Train an RBM using the Contrastive Divergence algorithm
+    
+    Args:
+        images (np.ndarray): Input data
+        W, a, b: RBM parameters to be trained
+        epochs (int): Number of epochs for training
+        learning_rate (float): Learning rate
+        batch_size (int): Size of minibatches
+        verbose (bool): If True, print progress and loss
+    
+    Returns:
+        tuple: Updated weights, visible biases, hidden biases, and loss history
+    """
     n_samples = images.shape[0]
     loss = []
 
@@ -79,12 +141,21 @@ def train_RBM(images, W, a, b, epochs=10000, learning_rate=0.01, batch_size=50, 
     return W, a, b, loss
 
 def generer_image_RBM(n_imgs, n_iter, W, a, b, shape=(20, 16)):
-
+    """
+    Generate images from an RBM
+    
+    Args:
+        n_imgs (int): Number of images to generate
+        n_iter (int): Number of Gibbs sampling iterations
+        W, a, b: RBM parameters
+        shape (tuple): Shape of each image
+    """
     fig, axs = plt.subplots(n_imgs // 5, 5, figsize=(10, 2 * (n_imgs // 5)))
     fig.patch.set_facecolor('black')
 
     for i in range(n_imgs):
-        v = np.random.rand(W.shape[0]) < 0.5
+        v = np.random.binomial(1, 0.5, size=W.shape[0])
+        # v = np.random.rand(W.shape[0]) < 0.5
 
         for _ in range(n_iter):
             _, h = entree_sortie_RBM(v.reshape(1, -1), W, b)

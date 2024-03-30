@@ -33,7 +33,7 @@ def pretrain_DNN(DNN, data, epochs=200, learning_rate=0.01, batch_size=128, verb
         tuple: The pretrained DNN and a list of loss values for each training epoch
     """
     DNN[:len(DNN)-1], losses = train_DBN(
-        RBM=DNN[:len(DNN)-1], 
+        DBN=DNN[:len(DNN)-1], 
         images=data, 
         epochs=epochs, 
         learning_rate=learning_rate, 

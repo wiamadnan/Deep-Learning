@@ -95,7 +95,7 @@ def sortie_entree_RBM(Y, W, a):
     v_s = np.random.binomial(1, proba_v, size=proba_v.shape)
     return proba_v, v_s
 
-def train_RBM(images, W, a, b, epochs=10000, learning_rate=0.01, batch_size=50, verbose = True):
+def train_RBM(images, W, a, b, epochs=10000, learning_rate=0.01, batch_size=50, verbose=True):
     """
     Train an RBM using the Contrastive Divergence algorithm
     
@@ -125,6 +125,10 @@ def train_RBM(images, W, a, b, epochs=10000, learning_rate=0.01, batch_size=50, 
             proba_v0, v1 = sortie_entree_RBM(h0, W, a)
             proba_h1, h1 = entree_sortie_RBM(v1, W, b)
 
+            grad_w = np.dot(x_batch.T, proba_h0) - np.dot(v1.T, proba_h1)
+            grad_a = np.mean(x_batch - v1, axis=0)
+            grad_b =np.mean(proba_h0 - proba_h1, axis=0)
+            
             W += learning_rate * (np.dot(x_batch.T, proba_h0) - np.dot(v1.T, proba_h1))
             a += learning_rate * np.mean(x_batch - v1, axis=0)
             b += learning_rate * np.mean(proba_h0 - proba_h1, axis=0)
@@ -153,17 +157,23 @@ def generer_image_RBM(n_imgs, n_iter, W, a, b, shape=(20, 16)):
     fig, axs = plt.subplots(n_imgs // 5, 5, figsize=(10, 2 * (n_imgs // 5)))
     fig.patch.set_facecolor('black')
 
+    generated_imgs = []
+    
     for i in range(n_imgs):
         v = np.random.binomial(1, 0.5, size=W.shape[0])
         # v = np.random.rand(W.shape[0]) < 0.5
 
-        for _ in range(n_iter):
+        for i in range(n_iter):
             _, h = entree_sortie_RBM(v.reshape(1, -1), W, b)
             _, v = sortie_entree_RBM(h, W, a)
 
+        generated_imgs.append(v)
+        
         ax = axs[i // 5, i % 5]
         ax.imshow(v.reshape(shape), cmap='gray')
         ax.axis('off')
 
     plt.tight_layout()
     plt.show()
+
+    return np.array(generated_imgs)

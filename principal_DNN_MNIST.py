@@ -17,7 +17,7 @@ def init_DNN(neurons):
     dnn = init_DBN(neurons)
     return dnn
 
-def pretrain_DNN(DNN, data, epochs, learning_rate, batch_size, verbose=True):
+def pretrain_DNN(DNN, data, epochs=200, learning_rate=0.01, batch_size=128, verbose=True):
     """
     Pretrain the DNN using unsupervised learning on the given data
     
@@ -35,7 +35,7 @@ def pretrain_DNN(DNN, data, epochs, learning_rate, batch_size, verbose=True):
     DNN[:len(DNN)-1], losses = train_DBN(
         RBM=DNN[:len(DNN)-1], 
         images=data, 
-        n_epoch=epochs, 
+        epochs=epochs, 
         learning_rate=learning_rate, 
         batch_size=batch_size,
         verbose=verbose
@@ -92,7 +92,7 @@ def cross_entropy(predictions, targets):
     """
     return -np.mean(targets * np.log(predictions + 1e-9))
 
-def retropropagation(DNN, X, y, epochs, learning_rate , batch_size , verbose = True):
+def retropropagation(DNN, X, y, epochs, learning_rate , batch_size , verbose=True):
     """
     Train the DNN using backpropagation
     

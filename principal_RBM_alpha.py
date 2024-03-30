@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import scipy.io as sio
 
-def lire_alpha_digit(data_path, caracters_idx):
+def lire_alpha_digit(data_path, characters_idx):
     """
     Load and preprocess images from the Binary AlphaDigits dataset
     
@@ -17,7 +17,7 @@ def lire_alpha_digit(data_path, caracters_idx):
     """
     alpha_digit = sio.loadmat(data_path)['dat']
 
-    imgs_set = alpha_digit[caracters_idx,:].flatten()
+    imgs_set = alpha_digit[characters_idx,:]
     imgs = []
 
     for img in imgs_set:
@@ -70,8 +70,6 @@ def entree_sortie_RBM(X, W, b):
     """
     act = np.dot(X, W) + b
     proba_h = sigmoid(act)
-
-    # h_s = 1 * (np.random.rand(*proba_h.shape) < proba_h)
     h_s = np.random.binomial(1, proba_h, size=proba_h.shape)
     return proba_h, h_s
 
@@ -90,12 +88,10 @@ def sortie_entree_RBM(Y, W, a):
     """
     proj = np.dot(Y, W.T) + a
     proba_v = sigmoid(proj)
-
-    # v_s = 1 * (np.random.rand(*proba_v.shape) < proba_v)
     v_s = np.random.binomial(1, proba_v, size=proba_v.shape)
     return proba_v, v_s
 
-def train_RBM(images, W, a, b, epochs=10000, learning_rate=0.01, batch_size=50, verbose=True):
+def train_RBM(images, W, a, b, epochs=100, learning_rate=0.01, batch_size=128, verbose=True):
     """
     Train an RBM using the Contrastive Divergence algorithm
     
@@ -125,9 +121,9 @@ def train_RBM(images, W, a, b, epochs=10000, learning_rate=0.01, batch_size=50, 
             proba_v0, v1 = sortie_entree_RBM(h0, W, a)
             proba_h1, h1 = entree_sortie_RBM(v1, W, b)
 
-            grad_w = np.dot(x_batch.T, proba_h0) - np.dot(v1.T, proba_h1)
-            grad_a = np.mean(x_batch - v1, axis=0)
-            grad_b =np.mean(proba_h0 - proba_h1, axis=0)
+            # grad_w = np.dot(x_batch.T, proba_h0) - np.dot(v1.T, proba_h1)
+            # grad_a = np.mean(x_batch - v1, axis=0)
+            # grad_b =np.mean(proba_h0 - proba_h1, axis=0)
             
             W += learning_rate * (np.dot(x_batch.T, proba_h0) - np.dot(v1.T, proba_h1))
             a += learning_rate * np.mean(x_batch - v1, axis=0)
@@ -146,13 +142,17 @@ def train_RBM(images, W, a, b, epochs=10000, learning_rate=0.01, batch_size=50, 
 
 def generer_image_RBM(n_imgs, n_iter, W, a, b, shape=(20, 16)):
     """
-    Generate images from an RBM
+    Generate and display images from
     
     Args:
         n_imgs (int): Number of images to generate
         n_iter (int): Number of Gibbs sampling iterations
         W, a, b: RBM parameters
         shape (tuple): Shape of each image
+
+    Returns:
+        np.ndarray: An array of generated images, where each image is flattened. The shape is (n_imgs, product of the tuple `shape`)
+    
     """
     fig, axs = plt.subplots(n_imgs // 5, 5, figsize=(10, 2 * (n_imgs // 5)))
     fig.patch.set_facecolor('black')
@@ -161,7 +161,6 @@ def generer_image_RBM(n_imgs, n_iter, W, a, b, shape=(20, 16)):
     
     for i in range(n_imgs):
         v = np.random.binomial(1, 0.5, size=W.shape[0])
-        # v = np.random.rand(W.shape[0]) < 0.5
 
         for i in range(n_iter):
             _, h = entree_sortie_RBM(v.reshape(1, -1), W, b)

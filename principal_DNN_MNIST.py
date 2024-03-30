@@ -1,22 +1,74 @@
 import numpy as np
+from scipy.special import softmax
+from tqdm import tqdm
+
 from principal_DBN_alpha import init_DBN, train_DBN, entree_sortie_RBM
 
 def init_DNN(neurons):
+    """
+    Initialize a Deep Neural Network (DNN)
+    
+    Args:
+        neurons (list of int): List of the number of neurons in each layer of the DNN
+    
+    Returns:
+        list: Initialized DNN as a list of weight and bias tuples for each layer
+    """
     dnn = init_DBN(neurons)
     return dnn
 
-def pretrain_DNN(DNN, data, epochs, learning_rate, batch_size):
-    # Pretrain the DNN using the given data
-    RBM_list, losses = train_DBN(DNN, data, n_epoch=epochs, lr_rate=learning_rate, batch_size=batch_size)
-    return RBM_list, losses
+def pretrain_DNN(DNN, data, epochs=200, learning_rate=0.01, batch_size=128, verbose=True):
+    """
+    Pretrain the DNN using unsupervised learning on the given data
+    
+    Args:
+        DNN (list): The DNN to be pretrained
+        data (np.ndarray): The dataset to use for pretraining
+        epochs (int): The number of training epochs
+        learning_rate (float): The learning rate for training
+        batch_size (int): The size of batches used in training
+        verbose (bool): If True, prints training progress and loss information
+    
+    Returns:
+        tuple: The pretrained DNN and a list of loss values for each training epoch
+    """
+    DNN[:len(DNN)-1], losses = train_DBN(
+        DBN=DNN[:len(DNN)-1], 
+        images=data, 
+        epochs=epochs, 
+        learning_rate=learning_rate, 
+        batch_size=batch_size,
+        verbose=verbose
+    )
+    return DNN, losses
 
-def calcul_softmax(weights, biases, data):
-    logits = np.dot(data, weights) + biases
-    exp_logits = np.exp(logits - np.max(logits, axis=1, keepdims=True))
-    probabilities = exp_logits / np.sum(exp_logits, axis=1, keepdims=True)
-    return probabilities
+def calcul_softmax(W, b, data):
+    """
+    Calculate the softmax probabilities for the input data
+    
+    Args:
+        W (np.ndarray): The weight matrix for the softmax layer
+        b (np.ndarray): The bias vector for the softmax layer
+        data (np.ndarray): The input data for which to calculate softmax probabilities
+    
+    Returns:
+        np.ndarray: The softmax probabilities for the input data
+    """
+    logits = np.dot(data, W) + b
+    probs = softmax(logits, axis=1)
+    return probs 
 
 def entree_sortie_reseau(DNN, data):
+    """
+    Perform forward propagation through the DNN
+    
+    Args:
+        DNN (list): The DNN model
+        data (np.ndarray): The input data to propagate through the DNN
+    
+    Returns:
+        list: The output from each layer of the DNN, including the input layer and the softmax output
+    """
     outputs = [data]
     for W, a, b in DNN[:-1]:  # Exclude the last layer for now
         probas, _ = entree_sortie_RBM(outputs[-1], W, b)
@@ -28,63 +80,101 @@ def entree_sortie_reseau(DNN, data):
     return outputs
 
 def cross_entropy(predictions, targets):
-    return -np.sum(targets * np.log(predictions + 1e-9)) / predictions.shape[0]
+    """
+    Compute the cross-entropy loss between the predictions and the targets
+    
+    Args:
+        predictions (np.ndarray): Predicted probabilities for each class
+        targets (np.ndarray): Actual target probabilities (one-hot encoded)
+    
+    Returns:
+        float: The average cross-entropy loss
+    """
+    return -np.mean(targets * np.log(predictions + 1e-9))
 
-def sigmoid_derivative(x):
-    return x * (1 - x)
-
-def retropropagation(DNN, data, labels, epochs, learning_rate, batch_size):
+def retropropagation(DNN, X, y, epochs, learning_rate , batch_size , verbose=True):
+    """
+    Train the DNN using backpropagation
+    
+    Args:
+        DNN (list): The DNN to be trained
+        X (np.ndarray): Input features for training
+        y (np.ndarray): Target labels for training
+        epochs (int): Number of epochs to train for
+        learning_rate (float): Learning rate for weight updates
+        batch_size (int): Size of mini-batches for training
+        verbose (bool): If True, prints progress and loss information
+    
+    Returns:
+        tuple: The trained DNN and a list of average loss values for each epoch
+    """
+    losses = []
+    
+    n = X.shape[0]
+    l = len(DNN)
     for epoch in range(epochs):
-        total_loss = 0
-        for i in range(0, data.shape[0], batch_size):
-            # Mini-batch data and labels
-            batch_data = data[i:i + batch_size]
-            batch_labels = labels[i:i + batch_size]
-            
-            # Forward pass
-            activations = entree_sortie_reseau(DNN, batch_data)
-            predictions = activations[-1]
-            
-            # Calculate cross-entropy loss
-            loss = cross_entropy(predictions, batch_labels)
-            total_loss += loss
-            
-            # Backward pass
-            # Error in the output layer
-            output_error = predictions - batch_labels
-            delta = output_error
-            
-            # Propagate errors back through the network
-            for layer_idx in reversed(range(len(DNN))):
-                activations_prev_layer = activations[layer_idx]
-                W, a, b = DNN[layer_idx]
-                
-                # Calculate the gradient
-                W_gradient = np.dot(activations_prev_layer.T, delta) / batch_size
-                b_gradient = np.mean(delta, axis=0)
-                
-                # Update weights and biases
-                W -= learning_rate * W_gradient
-                b -= learning_rate * b_gradient
-                
-                # If not the first layer, propagate the error backward
-                if layer_idx > 0:
-                    delta = np.dot(delta, W.T) * sigmoid_derivative(activations_prev_layer)
-                    
-                # Update the DNN parameters
-                DNN[layer_idx] = (W, a, b)
-                
-        total_loss /= (data.shape[0] / batch_size)
-        print(f"Epoch {epoch + 1}/{epochs}, Loss: {total_loss}")
         
-    return DNN
+        loss_batches = []
+        
+        X_copy, y_copy = np.copy(X), np.copy(y)
+        shuffle = np.random.permutation(n)
+        X_copy, y_copy = X_copy[shuffle], y_copy[shuffle]
+        
+        for batch in tqdm(range(0, n, batch_size)):
+            X_batch = X_copy[batch:min(batch+batch_size, n)]
+            y_batch = y_copy[batch:min(batch+batch_size, n), :]
 
-def test_DNN(DNN, data, true_labels):
-    predicted_probs = entree_sortie_reseau(DNN, data)[-1]  # Get the last layer's output
-    predicted_labels = np.argmax(predicted_probs, axis=1)
-    true_labels = np.argmax(true_labels, axis=1)
-    error_rate = np.mean(predicted_labels != true_labels)
-    print("Error rate:", error_rate)
-    return error_rate
+            tb = X_batch.shape[0]
 
+            pred = entree_sortie_reseau(DNN, X_batch)
+            loss_batches.append(cross_entropy(y_batch, pred[-1]))
 
+            for i in range(l):
+                if i==0:
+                    delta = pred[l] - y_batch
+                else :
+                    delta = grad_a*(pred[l-i]*(1-pred[l-i]))
+                
+                W, a, b = DNN[l-i-1]
+                
+                grad_W = 1/tb * pred[l-i-1].T.dot(delta)
+                grad_b = 1/tb * np.sum(delta, axis=0)
+                grad_a = delta.dot(W.T)
+
+                W -= learning_rate*grad_W
+                b -= learning_rate*grad_b
+                
+                # Update the DNN parameters
+                DNN[l-i-1] = (W, a, b)
+                
+        losses.append(np.mean(loss_batches))
+        
+        if verbose:
+            # if not(epoch % 20):
+            loss = []
+            
+            print(f"Epoch {epoch} out of {epochs}, loss: {losses[-1]}")
+            
+    return DNN, losses
+    
+def test_DNN(DNN, data, labels, verbose=True):
+    """
+    Test the DNN on a given dataset and compute the misclassification rate
+    
+    Args:
+        DNN (list): The trained DNN to be tested
+        data (np.ndarray): The input features for testing
+        labels (np.ndarray): The true labels for the test data
+        verbose (bool): If True, prints the percentage of incorrectly labeled data
+    
+    Returns:
+        float: The misclassification rate as a percentage
+    """
+    preds = entree_sortie_reseau(DNN, data)
+    preds = np.argmax(preds[-1], axis=1)
+    labels = np.argmax(labels, axis=1)
+    good_labels = np.sum(preds == labels)
+    false_rate = (1 - good_labels / labels.shape[0])
+    if verbose:
+        print(f"The percentage of false labeled data is {false_rate}")
+    return false_rate

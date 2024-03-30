@@ -17,7 +17,7 @@ def lire_alpha_digit(data_path, characters_idx):
     """
     alpha_digit = sio.loadmat(data_path)['dat']
 
-    imgs_set = alpha_digit[characters_idx,:]
+    imgs_set = alpha_digit[characters_idx,:].flatten()
     imgs = []
 
     for img in imgs_set:
@@ -154,15 +154,21 @@ def generer_image_RBM(n_imgs, n_iter, W, a, b, shape=(20, 16)):
         np.ndarray: An array of generated images, where each image is flattened. The shape is (n_imgs, product of the tuple `shape`)
     
     """
-    fig, axs = plt.subplots(n_imgs // 5, 5, figsize=(10, 2 * (n_imgs // 5)))
+    nrows = n_imgs // 5 if n_imgs % 5 == 0 else n_imgs // 5 + 1
+    fig, axs = plt.subplots(nrows, 5, figsize=(10, 2 * nrows))
     fig.patch.set_facecolor('black')
 
+    # Ensure axs is always a 2-dimensional array
+    if n_imgs <= 5:
+        axs = np.array([axs])
+    axs = np.array(axs).reshape(nrows, -1)  # Reshape axs to 2D if it is not already
+    
     generated_imgs = []
     
     for i in range(n_imgs):
         v = np.random.binomial(1, 0.5, size=W.shape[0])
 
-        for i in range(n_iter):
+        for j in range(n_iter):
             _, h = entree_sortie_RBM(v.reshape(1, -1), W, b)
             _, v = sortie_entree_RBM(h, W, a)
 

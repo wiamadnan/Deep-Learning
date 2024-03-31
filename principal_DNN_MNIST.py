@@ -110,49 +110,48 @@ def retropropagation(DNN, X, y, epochs, learning_rate , batch_size , verbose=Tru
     """
     losses = []
     
-    n = X.shape[0]
-    l = len(DNN)
+    n_samples = X.shape[0]
+    n_layers = len(DNN)
+    
     for epoch in range(epochs):
         
         loss_batches = []
         
         X_copy, y_copy = np.copy(X), np.copy(y)
-        shuffle = np.random.permutation(n)
+        shuffle = np.random.permutation(n_samples)
         X_copy, y_copy = X_copy[shuffle], y_copy[shuffle]
         
-        for batch in tqdm(range(0, n, batch_size)):
-            X_batch = X_copy[batch:min(batch+batch_size, n)]
-            y_batch = y_copy[batch:min(batch+batch_size, n), :]
+        for batch in tqdm(range(0, n_samples, batch_size)):
+            X_batch = X_copy[batch:min(batch + batch_size, n_samples)]
+            y_batch = y_copy[batch:min(batch + batch_size, n_samples), :]
 
-            tb = X_batch.shape[0]
+            batch_sz = X_batch.shape[0]
 
             pred = entree_sortie_reseau(DNN, X_batch)
             loss_batches.append(cross_entropy(y_batch, pred[-1]))
 
-            for i in range(l):
+            for i in range(n_layers):
                 if i==0:
-                    delta = pred[l] - y_batch
+                    delta = pred[n_layers] - y_batch
                 else :
-                    delta = grad_a*(pred[l-i]*(1-pred[l-i]))
+                    delta = grad_a*(pred[n_layers - i]*(1 - pred[n_layers - i]))
                 
-                W, a, b = DNN[l-i-1]
+                W, a, b = DNN[n_layers - i - 1]
                 
-                grad_W = 1/tb * pred[l-i-1].T.dot(delta)
-                grad_b = 1/tb * np.sum(delta, axis=0)
+                grad_W = pred[n_layers - i - 1].T.dot(delta) / batch_sz
+                grad_b = np.sum(delta, axis=0) / batch_sz
                 grad_a = delta.dot(W.T)
 
                 W -= learning_rate*grad_W
                 b -= learning_rate*grad_b
                 
                 # Update the DNN parameters
-                DNN[l-i-1] = (W, a, b)
+                DNN[n_layers - i - 1] = (W, a, b)
                 
         losses.append(np.mean(loss_batches))
         
         if verbose:
-            # if not(epoch % 20):
-            loss = []
-            
+            # if not(epoch % 20):            
             print(f"Epoch {epoch} out of {epochs}, loss: {losses[-1]}")
             
     return DNN, losses

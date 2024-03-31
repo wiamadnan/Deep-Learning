@@ -26,10 +26,6 @@ We aim to explore the Binary AlphaDigits dataset to understand the effects of va
 
 - `utils.py`: Utility functions.
 
-## How to Use
-
-To use the code in this repository, ensure you have Jupyter Notebook or JupyterLab installed to open the `.ipynb` files. For the Python scripts, a Python environment with the necessary dependencies installed is required.
-
 ## Dependencies
 
 - Python 3.9
@@ -41,6 +37,6 @@ To use the code in this repository, ensure you have Jupyter Notebook or JupyterL
 
 Clone this repository using:
 
-\`\`\`
+```
 git clone https://github.com/wiamadnan/Deep-Learning.git
-\`\`\`
+```
